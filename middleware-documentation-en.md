@@ -1,10 +1,10 @@
-# Midware: Product Documentation (Final Year Project)
+# Middleware: Product Documentation (Final Year Project)
 
 ## 1. Overview
 
 ### What it is
 
-Midware is a backend messaging platform: a middleware that centralize the sending of transactional messages to end users, without own interface for the end user. Any client application trigger this platform via API call, instead of implement and maintain its own direct integration with the WhatsApp and e-mail providers.
+Middleware is a backend messaging platform: a middleware that centralize the sending of transactional messages to end users, without own interface for the end user. Any client application trigger this platform via API call, instead of implement and maintain its own direct integration with the WhatsApp and e-mail providers.
 
 ### Purpose
 
@@ -18,15 +18,15 @@ Solve, one single time and in a reusable way, a problem that repeat in any busin
 ### General characteristics
 
 1. Multi-tenant since the conception: each tenant authenticate through a key sent in the own call, for example `{{url}}/transactions?key={{key}}`. Is this key that identify the tenant and guarantee the data isolation in the sending records. Authenticate via query string is a known technical debt, see section 10.
-2. The catalog of message types is closed, limited to a small set of messages pre-registered by Midware (five, see section 8). The tenant don't register own messages, only choose between the existing ones through the field `messageId`.
+2. The catalog of message types is closed, limited to a small set of messages pre-registered by Middleware (five, see section 8). The tenant don't register own messages, only choose between the existing ones through the field `messageId`.
 3. The tenant can consult the catalog of available messages, and the `messageId` of each one, through an own consultation API.
 4. Each sending call carry two identification fields: `channelId`, that indicate the channel of the message (1 for WhatsApp, 2 for e-mail, 3 for both), and `messageId`, that indicate which of the catalog messages must be used. The two fields are independents: the same `messageId` can be sent by any `channelId`.
 5. The body of each call also carry the customized datas of the message: the recipient and the variables that the template of that `messageId` will use, like order number and link.
-6. When `channelId` is 1 or 2 (only one channel), the tenant can optionally mark `fallback: true`, asking to Midware to try the alternative channel in case of failure in the main channel, since the data of the alternative channel was also sent. When `channelId` is 3, the field `fallback` is ignored, because the two channels are already tried anyway.
+6. When `channelId` is 1 or 2 (only one channel), the tenant can optionally mark `fallback: true`, asking to Middleware to try the alternative channel in case of failure in the main channel, since the data of the alternative channel was also sent. When `channelId` is 3, the field `fallback` is ignored, because the two channels are already tried anyway.
 7. For batch sendings, the body carry a list of recipients (`recipients`), each one with their own contact datas and variables, under the same `channelId` and `messageId` of the entire batch.
-8. For the WhatsApp channel, all the tenants send using one single corporate number/line of Midware, not an own line per tenant. One single WhatsApp Business Account, with templates approved one time, serve for everybody.
-9. For the e-mail channel the same logic is valid: all the tenants send from one single sender of Midware, configured in the service itself, without the tenant inform sender in the call. In this project is used a test sender. In a commercial product would be necessary an own corporate domain, verified with the e-mail provider.
-10. Service deliberately "dumb" about the recipient and the moment of the sending: who trigger Midware always resolve to whom send and decide when send. Midware only know which template to use and how to fill it.
+8. For the WhatsApp channel, all the tenants send using one single corporate number/line of Middleware, not an own line per tenant. One single WhatsApp Business Account, with templates approved one time, serve for everybody.
+9. For the e-mail channel the same logic is valid: all the tenants send from one single sender of Middleware, configured in the service itself, without the tenant inform sender in the call. In this project is used a test sender. In a commercial product would be necessary an own corporate domain, verified with the e-mail provider.
+10. Service deliberately "dumb" about the recipient and the moment of the sending: who trigger Middleware always resolve to whom send and decide when send. Middleware only know which template to use and how to fill it.
 
 ---
 
@@ -41,13 +41,13 @@ Solve, one single time and in a reusable way, a problem that repeat in any busin
 
 Before describe the flows, three concepts need to be clear, because they are referenced all the time in the rest of the document.
 
-1. Tenant: the client application that is integrated to Midware, identified by the key sent in each call.
-2. Transaction: an individual message, sent alone (isolated sending) or as part of a batch (batch sending). Every transaction have its own `transactionId`, generated by Midware in the moment of the processing, never informed by the tenant.
-3. Batch: a grouping of transactions sent together, at once. Every batch have its own `batchId`, also generated by Midware.
+1. Tenant: the client application that is integrated to Middleware, identified by the key sent in each call.
+2. Transaction: an individual message, sent alone (isolated sending) or as part of a batch (batch sending). Every transaction have its own `transactionId`, generated by Middleware in the moment of the processing, never informed by the tenant.
+3. Batch: a grouping of transactions sent together, at once. Every batch have its own `batchId`, also generated by Middleware.
 
 The relation between the two: every transaction have a `transactionId`. When the transaction came from a batch, it also carry the `batchId` which it belongs. When the transaction came from an isolated sending, the field `batchId` stay null. This permit to answer, for any transaction, if it came from an isolated call or from a batch, and which batch.
 
-As the tenant don't know the `transactionId` in the moment of the sending, since it only exist after Midware process the call, the response of the batch sending return, for each recipient sent, the generated `transactionId` and its `index` in the original list, used for the tenant to relate the response with the recipient that he sent.
+As the tenant don't know the `transactionId` in the moment of the sending, since it only exist after Middleware process the call, the response of the batch sending return, for each recipient sent, the generated `transactionId` and its `index` in the original list, used for the tenant to relate the response with the recipient that he sent.
 
 Illustrative example, response of a batch with two recipients:
 
@@ -95,18 +95,18 @@ Sending channel for individual and immediate messages, where who trigger need a 
 
 ### How it works
 
-1. Client application (ex: a fleet management or scheduling system) call the Midware API informing the `messageId` of the catalogued message, the `channelId`, optionally `fallback`, the `callbackUrl`, the recipient and the variables to fill.
-2. Midware validate the call and map the `messageId` to the corresponding approved template.
-3. Midware generate a `transactionId` and record the transaction in the database with status `queued` (tenant, recipient, `messageId`, `channelId`, `transactionId`, `batchId` null, `callbackUrl`, date/time).
-4. Midware return `202 Accepted` with the `transactionId` and the status `queued` for who called.
-5. Midware execute the sending via provider (Meta Cloud API for WhatsApp, transactional e-mail provider for e-mail), according the `channelId` informed, and record in the transaction the ID returned by the provider.
-6. When the status of the transaction change (ex: sent, delivered, failed), Midware notify the client application through a callback call to the `callbackUrl` informed in that transaction.
+1. Client application (ex: a fleet management or scheduling system) call the Middleware API informing the `messageId` of the catalogued message, the `channelId`, optionally `fallback`, the `callbackUrl`, the recipient and the variables to fill.
+2. Middleware validate the call and map the `messageId` to the corresponding approved template.
+3. Middleware generate a `transactionId` and record the transaction in the database with status `queued` (tenant, recipient, `messageId`, `channelId`, `transactionId`, `batchId` null, `callbackUrl`, date/time).
+4. Middleware return `202 Accepted` with the `transactionId` and the status `queued` for who called.
+5. Middleware execute the sending via provider (Meta Cloud API for WhatsApp, transactional e-mail provider for e-mail), according the `channelId` informed, and record in the transaction the ID returned by the provider.
+6. When the status of the transaction change (ex: sent, delivered, failed), Middleware notify the client application through a callback call to the `callbackUrl` informed in that transaction.
 
 ### Important business rules
 
 1. Used for messages that need to be delivered immediately and where one single person is notified per time, like the first access invite and the password reset.
-2. Midware don't decide if must send or not, only execute and confirm. The decision of trigger was already taken by who called.
-3. The `callbackUrl` is informed in each call, is not a data registered before by the tenant. If it come absent, Midware just don't notify, the tenant stay depending of the manual status consultation.
+2. Middleware don't decide if must send or not, only execute and confirm. The decision of trigger was already taken by who called.
+3. The `callbackUrl` is informed in each call, is not a data registered before by the tenant. If it come absent, Middleware just don't notify, the tenant stay depending of the manual status consultation.
 
 ### Technical contract
 
@@ -119,7 +119,7 @@ POST /v1/transactions?key={{key}}
   "channelId": 3,
   "messageId": 5,
   "fallback": true,
-  "callbackUrl": "https://tenant.example.com/webhooks/midware",
+  "callbackUrl": "https://tenant.example.com/webhooks/middleware",
   "recipient": {
     "name": "Maria Silva",
     "phone": "+353123456789",
@@ -197,11 +197,11 @@ Sending channel for reminders or notifications fired to many recipients at once,
 ### How it works
 
 1. Client application publish a batch informing the `messageId`, the `channelId`, optionally `fallback` and `callbackUrl`, valid for the entire batch, and the list `recipients` with the datas and the variables of each recipient.
-2. Midware generate a `batchId` for the entire set, and a `transactionId` for each recipient inside it.
-3. The client application act as producer of the queue, Midware as consumer.
-4. Midware process the queue in asynchronous way, respecting the rate limits of the provider.
+2. Middleware generate a `batchId` for the entire set, and a `transactionId` for each recipient inside it.
+3. The client application act as producer of the queue, Middleware as consumer.
+4. Middleware process the queue in asynchronous way, respecting the rate limits of the provider.
 5. Each processed transaction is recorded in the database with its `transactionId` and the `batchId` which it belongs, in the same way of the isolated sending, but with the link to the batch filled.
-6. When the status of each transaction of the batch change, Midware notify the client application through a callback call to the informed `callbackUrl`, one call per transaction.
+6. When the status of each transaction of the batch change, Middleware notify the client application through a callback call to the informed `callbackUrl`, one call per transaction.
 
 ### Important business rules
 
@@ -209,7 +209,7 @@ Used for cases like periodic reminders, where the client application scan daily 
 
 Example: the client application control who have visa valid, expired or about to expire. The client application generate a list of users with expired visa and send a batch of notifications informing that the person need to regularize the situation, and until there the registration will stay suspended.
 
-The `callbackUrl` is informed in each batch call, is not a data registered before by the tenant. If it come absent, Midware just don't notify, the tenant stay depending of the manual status consultation.
+The `callbackUrl` is informed in each batch call, is not a data registered before by the tenant. If it come absent, Middleware just don't notify, the tenant stay depending of the manual status consultation.
 
 ### Technical contract
 
@@ -222,7 +222,7 @@ POST /v1/batches?key={{key}}
   "channelId": 1,
   "messageId": 5,
   "fallback": true,
-  "callbackUrl": "https://tenant.example.com/webhooks/midware",
+  "callbackUrl": "https://tenant.example.com/webhooks/middleware",
   "recipients": [
     {
       "name": "Maria Silva",
@@ -277,7 +277,7 @@ POST {callbackUrl}
 
 ### Integration pattern
 
-Message queue (asynchronous messaging), with the client application as producer and Midware as consumer.
+Message queue (asynchronous messaging), with the client application as producer and Middleware as consumer.
 
 ### Open points
 
@@ -291,7 +291,7 @@ Message queue (asynchronous messaging), with the client application as producer 
 
 ### What it is
 
-Each message type supported by Midware have its own `messageId` in the catalog, mapping to an approved content template. The sending channel (`channelId`) is chosen by the tenant in each call, independent of the `messageId`: the same template can be sent by WhatsApp, e-mail, or both, since the content don't depend of particularities of a specific channel.
+Each message type supported by Middleware have its own `messageId` in the catalog, mapping to an approved content template. The sending channel (`channelId`) is chosen by the tenant in each call, independent of the `messageId`: the same template can be sent by WhatsApp, e-mail, or both, since the content don't depend of particularities of a specific channel.
 
 ### Catalog of messages (closed, five types)
 
@@ -362,10 +362,10 @@ GET /v1/message-types?key={{key}}
 
 ### Important business rules
 
-1. The catalog is closed, limited to these five messages. New types would require change of scope of Midware, is not something that the tenant register by his own.
-2. In all the message types, is always who trigger Midware that resolve the recipient (phone number or e-mail address) before the call. Midware never decide or discover by its own to whom send.
+1. The catalog is closed, limited to these five messages. New types would require change of scope of Middleware, is not something that the tenant register by his own.
+2. In all the message types, is always who trigger Middleware that resolve the recipient (phone number or e-mail address) before the call. Middleware never decide or discover by its own to whom send.
 3. The field `name` of the recipient fill automatically the variable `{{name}}` of the template, without need to be repeated inside `variables`. The others variables required by the template (see table of the catalog) come from the object `variables` sent in the call.
-4. In all the message types, the link come entirely as variable provided by the tenant in the call. Midware only insert the value in the template, without generate or validate the content of the link. In the case of the first access invite and the password reset, the generation and validation of the single use token is also responsibility of the tenant..
+4. In all the message types, the link come entirely as variable provided by the tenant in the call. Middleware only insert the value in the template, without generate or validate the content of the link. In the case of the first access invite and the password reset, the generation and validation of the single use token is also responsibility of the tenant..
 
 ### Open points
 
@@ -384,7 +384,7 @@ Consolidation of all the endpoints defined in the previous sections. All the cal
 | POST | `/v1/batches` | Sending of a batch of messages | 7 |
 | GET | `/v1/message-types` | Consultation of the catalog of available messages | 8 |
 
-Besides that, Midware is who make an outgoing call, not exposed as own API: the callback (`POST {callbackUrl}`), fired to the URL informed by the tenant in each transaction, always that its status change.
+Besides that, Middleware is who make an outgoing call, not exposed as own API: the callback (`POST {callbackUrl}`), fired to the URL informed by the tenant in each transaction, always that its status change.
 
 ---
 
@@ -395,7 +395,7 @@ Besides that, Midware is who make an outgoing call, not exposed as own API: the 
 3. Authentication via query string (`?key={{key}}`) is the best way? how companies do this process?
 5. Time limit of transactions without return of the provider: define after how much time a pending transaction is marked as failed. This time also define when the fallback is triggered.
 6. Security of the received webhooks: validate the signature sent by Meta and by Resend, for only them can update the status of a transaction.
-7. Security of the sent callbacks: sign the callbacks of Midware, for the tenant can confirm that the notice came really from Midware. 
+7. Security of the sent callbacks: sign the callbacks of Middleware, for the tenant can confirm that the notice came really from Middleware. 
 8. Possible status of a transaction: define the official list and the meaning of each one, for example `queued`, `sent`, `delivered` and `failed`, making clear that `delivered` mean delivered to the destination, without guarantee of inbox or reading. 
 9. Modeling of the database, define the tables, fields and relationships (tenants, transactions, batches, catalog of messages), from the datas already described in sections 3, 4 and 6.
 

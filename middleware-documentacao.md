@@ -1,10 +1,10 @@
-# Midware: Documentação de Produto (Trabalho de Conclusão de Curso)
+# Middleware: Documentação de Produto (Trabalho de Conclusão de Curso)
 
 ## 1. Visão geral
 
 ### O que é
 
-Midware é uma plataforma backend de mensageria: um middleware que centraliza o envio de mensagens transacionais a usuários finais, sem interface própria voltada ao usuário final. Qualquer aplicação cliente aciona essa plataforma via chamada de API, ao invés de implementar e manter sua própria integração direta com os provedores de WhatsApp e e-mail.
+Middleware é uma plataforma backend de mensageria: um middleware que centraliza o envio de mensagens transacionais a usuários finais, sem interface própria voltada ao usuário final. Qualquer aplicação cliente aciona essa plataforma via chamada de API, ao invés de implementar e manter sua própria integração direta com os provedores de WhatsApp e e-mail.
 
 ### Propósito
 
@@ -18,15 +18,15 @@ Resolver, uma única vez e de forma reutilizável, um problema que se repete em 
 ### Características gerais
 
 1. Multi-tenant desde a concepção: cada tenant se autentica através de uma chave (key) enviada na própria chamada, por exemplo `{{url}}/transactions?key={{key}}`. É essa chave que identifica o tenant e garante o isolamento de dados no registro de envios. Autenticar via query string é um débito técnico conhecido, ver seção 10.
-2. O catálogo de tipos de mensagem é fechado, limitado a um pequeno conjunto de mensagens pré-cadastradas pelo Midware (cinco, ver seção 8). O tenant não cadastra mensagens próprias, apenas escolhe entre as existentes através do campo `messageId`.
+2. O catálogo de tipos de mensagem é fechado, limitado a um pequeno conjunto de mensagens pré-cadastradas pelo Middleware (cinco, ver seção 8). O tenant não cadastra mensagens próprias, apenas escolhe entre as existentes através do campo `messageId`.
 3. O tenant pode consultar o catálogo de mensagens disponíveis, e o `messageId` de cada uma, através de uma API própria de consulta.
 4. Cada chamada de envio carrega dois campos de identificação: `channelId`, que indica o canal da mensagem (1 para WhatsApp, 2 para e-mail, 3 para os dois), e `messageId`, que indica qual das mensagens do catálogo deve ser usada. Os dois campos são independentes: o mesmo `messageId` pode ser enviado por qualquer `channelId`.
 5. O corpo (body) de cada chamada também carrega os dados customizados da mensagem: o destinatário e as variáveis que o template daquele `messageId` vai usar, como número do pedido e link.
-6. Quando `channelId` é 1 ou 2 (um canal só), o tenant pode opcionalmente marcar `fallback: true`, pedindo que o Midware tente o canal alternativo em caso de falha no canal principal, desde que o dado do canal alternativo também tenha sido enviado. Quando `channelId` é 3, o campo `fallback` é ignorado, porque os dois canais já são tentados de qualquer forma.
+6. Quando `channelId` é 1 ou 2 (um canal só), o tenant pode opcionalmente marcar `fallback: true`, pedindo que o Middleware tente o canal alternativo em caso de falha no canal principal, desde que o dado do canal alternativo também tenha sido enviado. Quando `channelId` é 3, o campo `fallback` é ignorado, porque os dois canais já são tentados de qualquer forma.
 7. Para envios em lote, o corpo carrega uma lista de destinatários (`recipients`), cada um com seus próprios dados de contato e variáveis, sob o mesmo `channelId` e `messageId` do lote inteiro.
-8. Para o canal WhatsApp, todos os tenants enviam usando um único número/linha corporativo do Midware, não uma linha própria por tenant. Um único WhatsApp Business Account, com templates aprovados uma vez, serve para todos.
-9. Para o canal e-mail vale a mesma lógica: todos os tenants enviam a partir de um único remetente do Midware, configurado no próprio serviço, sem que o tenant informe remetente na chamada. Neste TCC é usado um remetente de teste. Em um produto comercial seria necessário um domínio corporativo próprio, verificado junto ao provedor de e-mail.
-10. Serviço deliberadamente "burro" quanto ao destinatário e ao momento do envio: quem aciona o Midware sempre resolve para quem enviar e decide quando enviar. O Midware só sabe qual template usar e como preenchê-lo.
+8. Para o canal WhatsApp, todos os tenants enviam usando um único número/linha corporativo do Middleware, não uma linha própria por tenant. Um único WhatsApp Business Account, com templates aprovados uma vez, serve para todos.
+9. Para o canal e-mail vale a mesma lógica: todos os tenants enviam a partir de um único remetente do Middleware, configurado no próprio serviço, sem que o tenant informe remetente na chamada. Neste TCC é usado um remetente de teste. Em um produto comercial seria necessário um domínio corporativo próprio, verificado junto ao provedor de e-mail.
+10. Serviço deliberadamente "burro" quanto ao destinatário e ao momento do envio: quem aciona o Middleware sempre resolve para quem enviar e decide quando enviar. O Middleware só sabe qual template usar e como preenchê-lo.
 
 ---
 
@@ -41,13 +41,13 @@ Resolver, uma única vez e de forma reutilizável, um problema que se repete em 
 
 Antes de descrever os fluxos, três conceitos precisam estar claros, porque são referenciados o tempo todo no restante do documento.
 
-1. Tenant: a aplicação cliente que está integrada ao Midware, identificada pela key enviada em cada chamada.
-2. Transação: uma mensagem individual, seja ela enviada sozinha (envio isolado) ou como parte de um lote (envio em lote). Toda transação tem um `transactionId` próprio, gerado pelo Midware no momento do processamento, nunca informado pelo tenant.
-3. Lote: um agrupamento de transações enviadas juntas, de uma vez. Todo lote tem um `batchId` próprio, também gerado pelo Midware.
+1. Tenant: a aplicação cliente que está integrada ao Middleware, identificada pela key enviada em cada chamada.
+2. Transação: uma mensagem individual, seja ela enviada sozinha (envio isolado) ou como parte de um lote (envio em lote). Toda transação tem um `transactionId` próprio, gerado pelo Middleware no momento do processamento, nunca informado pelo tenant.
+3. Lote: um agrupamento de transações enviadas juntas, de uma vez. Todo lote tem um `batchId` próprio, também gerado pelo Middleware.
 
 A relação entre os dois: toda transação tem um `transactionId`. Quando a transação veio de um lote, ela também carrega o `batchId` ao qual pertence. Quando a transação veio de um envio isolado, o campo `batchId` fica nulo. Isso permite responder, para qualquer transação, se ela veio de uma chamada isolada ou de um lote, e qual lote.
 
-Como o tenant não sabe o `transactionId` no momento do envio, já que ele só existe depois que o Midware processa a chamada, a resposta do envio em lote devolve, para cada destinatário enviado, o `transactionId` gerado e o `index` dele na lista original, usado para o tenant relacionar a resposta com o destinatário que ele mandou.
+Como o tenant não sabe o `transactionId` no momento do envio, já que ele só existe depois que o Middleware processa a chamada, a resposta do envio em lote devolve, para cada destinatário enviado, o `transactionId` gerado e o `index` dele na lista original, usado para o tenant relacionar a resposta com o destinatário que ele mandou.
 
 Exemplo ilustrativo, resposta de um lote com dois destinatários:
 
@@ -95,18 +95,18 @@ Canal de envio para mensagens individuais e imediatas, onde quem aciona precisa 
 
 ### Como funciona
 
-1. Aplicação cliente (ex: um sistema de gestão de frotas ou de agendamentos) chama a API do Midware informando o `messageId` da mensagem catalogada, o `channelId`, opcionalmente `fallback`, o `callbackUrl`, o destinatário e as variáveis a preencher.
-2. Midware valida a chamada e mapeia o `messageId` para o template aprovado correspondente.
-3. Midware gera um `transactionId` e registra a transação no banco com status `queued` (tenant, destinatário, `messageId`, `channelId`, `transactionId`, `batchId` nulo, `callbackUrl`, data/hora).
-4. Midware retorna `202 Accepted` com o `transactionId` e o status `queued` para quem chamou.
-5. Midware executa o envio via provedor (Meta Cloud API para WhatsApp, provedor de e-mail transacional para e-mail), conforme o `channelId` informado, e registra na transação o ID devolvido pelo provedor.
-6. Quando o status da transação mudar (ex: enviado, entregue, falhou), o Midware notifica a aplicação cliente através de uma chamada de callback para a `callbackUrl` informada naquela transação.
+1. Aplicação cliente (ex: um sistema de gestão de frotas ou de agendamentos) chama a API do Middleware informando o `messageId` da mensagem catalogada, o `channelId`, opcionalmente `fallback`, o `callbackUrl`, o destinatário e as variáveis a preencher.
+2. Middleware valida a chamada e mapeia o `messageId` para o template aprovado correspondente.
+3. Middleware gera um `transactionId` e registra a transação no banco com status `queued` (tenant, destinatário, `messageId`, `channelId`, `transactionId`, `batchId` nulo, `callbackUrl`, data/hora).
+4. Middleware retorna `202 Accepted` com o `transactionId` e o status `queued` para quem chamou.
+5. Middleware executa o envio via provedor (Meta Cloud API para WhatsApp, provedor de e-mail transacional para e-mail), conforme o `channelId` informado, e registra na transação o ID devolvido pelo provedor.
+6. Quando o status da transação mudar (ex: enviado, entregue, falhou), o Middleware notifica a aplicação cliente através de uma chamada de callback para a `callbackUrl` informada naquela transação.
 
 ### Regras de negócio importantes
 
 1. Usado para mensagens que precisam ser entregues imediatamente e onde uma única pessoa é notificada por vez, como o convite de primeiro acesso e o reset de senha.
-2. O Midware não decide se deve enviar ou não, apenas executa e confirma. A decisão de acionar já foi tomada por quem chamou.
-3. O `callbackUrl` é informado a cada chamada, não é um dado cadastrado previamente pelo tenant. Se vier ausente, o Midware apenas não notifica, o tenant fica dependendo da consulta manual de status.
+2. O Middleware não decide se deve enviar ou não, apenas executa e confirma. A decisão de acionar já foi tomada por quem chamou.
+3. O `callbackUrl` é informado a cada chamada, não é um dado cadastrado previamente pelo tenant. Se vier ausente, o Middleware apenas não notifica, o tenant fica dependendo da consulta manual de status.
 
 ### Contrato técnico
 
@@ -119,7 +119,7 @@ POST /v1/transactions?key={{key}}
   "channelId": 3,
   "messageId": 5,
   "fallback": true,
-  "callbackUrl": "https://tenant.example.com/webhooks/midware",
+  "callbackUrl": "https://tenant.example.com/webhooks/middleware",
   "recipient": {
     "name": "Maria Silva",
     "phone": "+353123456789",
@@ -197,11 +197,11 @@ Canal de envio para lembretes ou notificações disparadas para muitos destinat�
 ### Como funciona
 
 1. Aplicação cliente publica um lote informando o `messageId`, o `channelId`, opcionalmente `fallback` e `callbackUrl`, válidos para o lote inteiro, e a lista `recipients` com os dados e as variáveis de cada destinatário.
-2. Midware gera um `batchId` para o conjunto inteiro, e um `transactionId` para cada destinatário dentro dele.
-3. A aplicação cliente atua como produtora da fila, o Midware como consumidor.
-4. Midware processa a fila de forma assíncrona, respeitando os limites de taxa do provedor.
+2. Middleware gera um `batchId` para o conjunto inteiro, e um `transactionId` para cada destinatário dentro dele.
+3. A aplicação cliente atua como produtora da fila, o Middleware como consumidor.
+4. Middleware processa a fila de forma assíncrona, respeitando os limites de taxa do provedor.
 5. Cada transação processada é registrada no banco com seu `transactionId` e o `batchId` ao qual pertence, do mesmo jeito que no envio isolado, mas com o vínculo ao lote preenchido.
-6. Quando o status de cada transação do lote mudar, o Midware notifica a aplicação cliente através de uma chamada de callback para a `callbackUrl` informada, uma chamada por transação.
+6. Quando o status de cada transação do lote mudar, o Middleware notifica a aplicação cliente através de uma chamada de callback para a `callbackUrl` informada, uma chamada por transação.
 
 ### Regras de negócio importantes
 
@@ -209,7 +209,7 @@ Usado para casos como lembretes periódicos, onde a aplicação cliente varre di
 
 Exemplo: a aplicação cliente controla quem tem visto válido, vencido ou a vencer. A aplicação cliente gera uma lista de usuários com visto vencido e manda um lote de notificações informando que a pessoa precisa regularizar a situação, e que até lá o cadastro ficará suspenso.
 
-O `callbackUrl` é informado a cada chamada de lote, não é um dado cadastrado previamente pelo tenant. Se vier ausente, o Midware apenas não notifica, o tenant fica dependendo da consulta manual de status.
+O `callbackUrl` é informado a cada chamada de lote, não é um dado cadastrado previamente pelo tenant. Se vier ausente, o Middleware apenas não notifica, o tenant fica dependendo da consulta manual de status.
 
 ### Contrato técnico
 
@@ -222,7 +222,7 @@ POST /v1/batches?key={{key}}
   "channelId": 1,
   "messageId": 5,
   "fallback": true,
-  "callbackUrl": "https://tenant.example.com/webhooks/midware",
+  "callbackUrl": "https://tenant.example.com/webhooks/middleware",
   "recipients": [
     {
       "name": "Maria Silva",
@@ -277,7 +277,7 @@ POST {callbackUrl}
 
 ### Padrão de integração
 
-Fila de mensagens (mensageria assíncrona), com a aplicação cliente como produtora e o Midware como consumidor.
+Fila de mensagens (mensageria assíncrona), com a aplicação cliente como produtora e o Middleware como consumidor.
 
 ### Pontos em aberto
 
@@ -291,7 +291,7 @@ Fila de mensagens (mensageria assíncrona), com a aplicação cliente como produ
 
 ### O que é
 
-Cada tipo de mensagem suportado pelo Midware tem um `messageId` próprio no catálogo, mapeando para um template de conteúdo aprovado. O canal de envio (`channelId`) é escolhido pelo tenant a cada chamada, independente do `messageId`: o mesmo template pode ser enviado por WhatsApp, e-mail, ou os dois, desde que o conteúdo não dependa de particularidades de um canal específico.
+Cada tipo de mensagem suportado pelo Middleware tem um `messageId` próprio no catálogo, mapeando para um template de conteúdo aprovado. O canal de envio (`channelId`) é escolhido pelo tenant a cada chamada, independente do `messageId`: o mesmo template pode ser enviado por WhatsApp, e-mail, ou os dois, desde que o conteúdo não dependa de particularidades de um canal específico.
 
 ### Catálogo de mensagens (fechado, cinco tipos)
 
@@ -362,10 +362,10 @@ GET /v1/message-types?key={{key}}
 
 ### Regras de negócio importantes
 
-1. O catálogo é fechado, limitado a essas cinco mensagens. Novos tipos exigiriam alteração de escopo do Midware, não é algo que o tenant cadastra por conta própria.
-2. Em todos os tipos de mensagem, é sempre quem aciona o Midware que resolve o destinatário (número de telefone ou endereço de e-mail) antes da chamada. O Midware nunca decide ou descobre por conta própria para quem enviar.
+1. O catálogo é fechado, limitado a essas cinco mensagens. Novos tipos exigiriam alteração de escopo do Middleware, não é algo que o tenant cadastra por conta própria.
+2. Em todos os tipos de mensagem, é sempre quem aciona o Middleware que resolve o destinatário (número de telefone ou endereço de e-mail) antes da chamada. O Middleware nunca decide ou descobre por conta própria para quem enviar.
 3. O campo `name` do destinatário preenche automaticamente a variável `{{name}}` do template, sem precisar ser repetido dentro de `variables`. As demais variáveis exigidas pelo template (ver tabela do catálogo) vêm do objeto `variables` enviado na chamada.
-4. Em todos os tipos de mensagem, o link vem inteiramente como variável fornecida pelo tenant na chamada. O Midware apenas insere o valor no template, sem gerar ou validar o conteúdo do link. No caso do convite de primeiro acesso e do reset de senha, a geração e a validação do token de uso único também são responsabilidade do tenant..
+4. Em todos os tipos de mensagem, o link vem inteiramente como variável fornecida pelo tenant na chamada. O Middleware apenas insere o valor no template, sem gerar ou validar o conteúdo do link. No caso do convite de primeiro acesso e do reset de senha, a geração e a validação do token de uso único também são responsabilidade do tenant..
 
 ### Pontos em aberto
 
@@ -384,7 +384,7 @@ Consolidação de todos os endpoints definidos nas seções anteriores. Todas as
 | POST | `/v1/batches` | Envio de um lote de mensagens | 7 |
 | GET | `/v1/message-types` | Consulta do catálogo de mensagens disponíveis | 8 |
 
-Além disso, o Midware é quem faz uma chamada de saída, não exposta como API própria: o callback (`POST {callbackUrl}`), disparado para a URL informada pelo tenant a cada transação, sempre que o status dela muda.
+Além disso, o Middleware é quem faz uma chamada de saída, não exposta como API própria: o callback (`POST {callbackUrl}`), disparado para a URL informada pelo tenant a cada transação, sempre que o status dela muda.
 
 ---
 
@@ -395,7 +395,7 @@ Além disso, o Midware é quem faz uma chamada de saída, não exposta como API 
 3. Autenticação via query string (`?key={{key}}`) é a melhor forma? como empresas realizam esse processo?
 5. Tempo limite de transações sem retorno do provedor: definir após quanto tempo uma transação pendente é marcada como falha. Esse tempo também define quando o fallback é acionado.
 6. Segurança dos webhooks recebidos: validar a assinatura enviada pela Meta e pelo Resend, para que só eles consigam atualizar o status de uma transação.
-7. Segurança dos callbacks enviados: assinar os callbacks do Midware, para que o tenant consiga confirmar que o aviso veio realmente do Midware. 
+7. Segurança dos callbacks enviados: assinar os callbacks do Middleware, para que o tenant consiga confirmar que o aviso veio realmente do Middleware. 
 8. Status possíveis de uma transação: definir a lista oficial e o significado de cada um, por exemplo `queued`, `sent`, `delivered` e `failed`, deixando claro que `delivered` significa entregue ao destino, sem garantia de caixa de entrada ou leitura. 
 9. Modelagem do banco de dados, definir as tabelas, campos e relacionamentos (tenants, transações, lotes, catálogo de mensagens), a partir dos dados já descritos nas seções 3, 4 e 6.
 
