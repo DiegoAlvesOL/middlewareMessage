@@ -749,18 +749,60 @@ A especificação e os diagramas ficam em um repositório próprio (`middlewareM
 
 ```
 middleware-project/
-  README.md
-  .gitignore
-  CODEOWNERS
-  docker-compose.yml
-  src/
-    middleware/
-      Middleware.Api/            (controllers, endpoints, configuração)
-      Middleware.Application/    (regras de negócio, BackgroundService)
-      Middleware.Data/           (acesso ao MySQL, repositórios, seed)
-      Middleware.Tests/          (xUnit)
-      Middleware.sln
-    frontend/                    (aplicação cliente de demonstração)
+├── README.md
+├── .gitignore
+├── CODEOWNERS
+├── docker-compose.yml
+└── src/
+    ├── middleware/
+    │   ├── Middleware.sln
+    │   ├── src/
+    │   │   ├── Middleware.Domain/
+    │   │   │   ├── Entities/
+    │   │   │   ├── Enums/
+    │   │   │   ├── Interfaces/
+    │   │   │   └── Middleware.Domain.csproj
+    │   │   │
+    │   │   ├── Middleware.Application/
+    │   │   │   ├── Dtos/
+    │   │   │   ├── Exceptions/
+    │   │   │   ├── Interfaces/
+    │   │   │   ├── Services/
+    │   │   │   ├── Validators/
+    │   │   │   └── Middleware.Application.csproj
+    │   │   │
+    │   │   ├── Middleware.Data/
+    │   │   │   ├── Infrastructure/
+    │   │   │   ├── Repositories/
+    │   │   │   ├── Scripts/
+    │   │   │   └── Middleware.Data.csproj
+    │   │   │
+    │   │   ├── Middleware.Infrastructure/
+    │   │   │   ├── Providers/
+    │   │   │   ├── Callbacks/
+    │   │   │   ├── Security/
+    │   │   │   └── Middleware.Infrastructure.csproj
+    │   │   │
+    │   │   └── Middleware.Api/
+    │   │       ├── Controllers/
+    │   │       ├── Webhooks/
+    │   │       ├── Workers/
+    │   │       ├── Pipeline/
+    │   │       ├── Options/
+    │   │       ├── appsettings.json
+    │   │       ├── appsettings.Development.json
+    │   │       ├── Dockerfile
+    │   │       ├── Program.cs
+    │   │       └── Middleware.Api.csproj
+    │   │
+    │   └── tests/
+    │       ├── Middleware.Domain.Tests/
+    │       ├── Middleware.Application.Tests/
+    │       ├── Middleware.Data.Tests/
+    │       ├── Middleware.Infrastructure.Tests/
+    │       └── Middleware.Api.Tests/
+    │
+    └── frontend/
 ```
 
 Cada pessoa trabalha em sua pasta de topo, em branches próprios, com pull request revisado pela outra. O `CODEOWNERS` define quem responde por cada pasta, e o histórico do GitHub mostra a autoria de cada um.

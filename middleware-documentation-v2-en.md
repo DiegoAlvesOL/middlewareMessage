@@ -749,18 +749,60 @@ The specification and the diagrams live in a repository of their own (`middlewar
 
 ```
 middleware-project/
-  README.md
-  .gitignore
-  CODEOWNERS
-  docker-compose.yml
-  src/
-    middleware/
-      Middleware.Api/            (controllers, endpoints, configuration)
-      Middleware.Application/    (business rules, BackgroundService)
-      Middleware.Data/           (MySQL access, repositories, seed)
-      Middleware.Tests/          (xUnit)
-      Middleware.sln
-    frontend/                    (demo client application)
+├── README.md
+├── .gitignore
+├── CODEOWNERS
+├── docker-compose.yml
+└── src/
+    ├── middleware/
+    │   ├── Middleware.sln
+    │   ├── src/
+    │   │   ├── Middleware.Domain/
+    │   │   │   ├── Entities/
+    │   │   │   ├── Enums/
+    │   │   │   ├── Interfaces/
+    │   │   │   └── Middleware.Domain.csproj
+    │   │   │
+    │   │   ├── Middleware.Application/
+    │   │   │   ├── Dtos/
+    │   │   │   ├── Exceptions/
+    │   │   │   ├── Interfaces/
+    │   │   │   ├── Services/
+    │   │   │   ├── Validators/
+    │   │   │   └── Middleware.Application.csproj
+    │   │   │
+    │   │   ├── Middleware.Data/
+    │   │   │   ├── Infrastructure/
+    │   │   │   ├── Repositories/
+    │   │   │   ├── Scripts/
+    │   │   │   └── Middleware.Data.csproj
+    │   │   │
+    │   │   ├── Middleware.Infrastructure/
+    │   │   │   ├── Providers/
+    │   │   │   ├── Callbacks/
+    │   │   │   ├── Security/
+    │   │   │   └── Middleware.Infrastructure.csproj
+    │   │   │
+    │   │   └── Middleware.Api/
+    │   │       ├── Controllers/
+    │   │       ├── Webhooks/
+    │   │       ├── Workers/
+    │   │       ├── Pipeline/
+    │   │       ├── Options/
+    │   │       ├── appsettings.json
+    │   │       ├── appsettings.Development.json
+    │   │       ├── Dockerfile
+    │   │       ├── Program.cs
+    │   │       └── Middleware.Api.csproj
+    │   │
+    │   └── tests/
+    │       ├── Middleware.Domain.Tests/
+    │       ├── Middleware.Application.Tests/
+    │       ├── Middleware.Data.Tests/
+    │       ├── Middleware.Infrastructure.Tests/
+    │       └── Middleware.Api.Tests/
+    │
+    └── frontend/
 ```
 
 Each person works in their own top-level folder, on their own branches, with a pull request reviewed by the other. The `CODEOWNERS` file defines who is responsible for each folder, and the GitHub history shows each person's authorship.
